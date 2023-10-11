@@ -1,7 +1,7 @@
+use crate::{Dictionary, FromIon, IonError, Row, Value};
 use std::vec;
-use {Dictionary, FromIon, IonError, Row, Value};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Section {
     pub dictionary: Dictionary,
     pub rows: Vec<Row>,
@@ -66,17 +66,10 @@ impl<T> Iterator for IntoIter<T> {
 }
 
 impl<'a> IntoIterator for &'a Section {
-    type Item = Row;
-    type IntoIter = IntoIter<Self::Item>;
+    type Item = &'a Row;
+    type IntoIter = std::slice::Iter<'a, Row>;
     fn into_iter(self) -> Self::IntoIter {
-        IntoIter {
-            iter: self
-                .rows_without_header()
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>()
-                .into_iter(),
-        }
+        self.rows_without_header().iter()
     }
 }
 
@@ -90,8 +83,8 @@ impl IntoIterator for Section {
             .skip(1)
             .take(1)
             .take_while(|&v| {
-                if let Some(Value::String(ref s)) = v.iter().skip(1).next() {
-                    s.starts_with("-")
+                if let Some(Value::String(ref s)) = v.get(1) {
+                    s.starts_with('-')
                 } else {
                     false
                 }
@@ -118,13 +111,14 @@ impl IntoIterator for Section {
 
 #[cfg(test)]
 mod tests {
+    use crate::ion::Ion;
+    use crate::Section;
     use quickcheck::TestResult;
     use regex::Regex;
-    use {Ion, Section};
 
     fn is_input_string_invalid(s: &str) -> bool {
         // ion cell is invalid if it contains any of [\n \t|\r] or is entirely made out of hyphens
-        let disallowed_cell_contents: Regex = Regex::new("[\n \t\r|]|^-+$").expect("regex");
+        let disallowed_cell_contents: Regex = Regex::new("[\n \t\r|\\\\]|^-+$").unwrap();
 
         disallowed_cell_contents.is_match(s)
     }
@@ -137,7 +131,7 @@ mod tests {
 
             #[test]
             fn it_works_on_ref_section() {
-                let ion = ion!(
+                let ion = crate::ion!(
                     r#"
                     [FOO]
                     |1||2|
@@ -153,7 +147,7 @@ mod tests {
 
             #[test]
             fn it_works_on_section_by_value() {
-                let mut ion = ion!(
+                let mut ion = crate::ion!(
                     r#"
                     [FOO]
                     |1||2|
@@ -169,7 +163,7 @@ mod tests {
 
             #[test]
             fn it_works_with_loop() {
-                let mut ion = ion!(
+                let mut ion = crate::ion!(
                     r#"
                     [FOO]
                     |1||2|
@@ -192,7 +186,7 @@ mod tests {
 
             #[test]
             fn it_works_with_section_by_value() {
-                let mut ion = ion!(
+                let mut ion = crate::ion!(
                     r#"
                     [FOO]
                     | 1 | 2 | 3 |
@@ -232,16 +226,16 @@ mod tests {
                 item = item
             );
 
-            let ion = ion_str.parse::<Ion>().expect("Format ion");
+            let ion = ion_str.parse::<Ion>().unwrap();
 
-            let section = ion.get("FOO").expect("Get section");
+            let section = ion.get("FOO").unwrap();
 
             TestResult::from_bool(3 == section.rows_without_header().len())
         }
 
         #[test]
         fn cell_content_can_start_with_hyphen() {
-            let ion = ion!(
+            let ion = crate::ion!(
                 r#"
                 [FOO]
                 |head1|head2|head3|
@@ -252,14 +246,14 @@ mod tests {
                 "#
             );
 
-            let section = ion.get("FOO").expect("Get section");
+            let section = ion.get("FOO").unwrap();
 
             assert_eq!(3, section.rows_without_header().len())
         }
 
         #[test]
         fn cell_content_can_be_empty() {
-            let ion = ion!(
+            let ion = crate::ion!(
                 r#"
                 [FOO]
                 |head1|head2|head3|
@@ -270,14 +264,36 @@ mod tests {
                 "#
             );
 
-            let section = ion.get("FOO").expect("Get section");
+            let section = ion.get("FOO").unwrap();
 
             assert_eq!(3, section.rows_without_header().len())
         }
 
         #[test]
+        fn cell_content_with_escaped_pipe() {
+            let ion = crate::ion!(
+                r#"
+                [FOO]
+                |head1|head2|head3|
+                |-----|-----|-----|
+                |     | a\|b| a   |
+                |     |     | b   |
+                |     | b   |     |
+                "#
+            );
+
+            let section = ion.get("FOO").unwrap();
+            let first_row = section.rows_without_header().first().unwrap();
+            assert_eq!(3, first_row.len());
+            assert_eq!("", first_row[0].to_string());
+            assert_eq!("a|b", first_row[1].to_string());
+            assert_eq!("a", first_row[2].to_string());
+            assert_eq!(3, section.rows_without_header().len())
+        }
+
+        #[test]
         fn section_can_have_no_content_rows() {
-            let ion = ion!(
+            let ion = crate::ion!(
                 r#"
                 [FOO]
                 |head1|head2|head3|
@@ -285,7 +301,7 @@ mod tests {
                 "#
             );
 
-            let section = ion.get("FOO").expect("Get section");
+            let section = ion.get("FOO").unwrap();
 
             assert_eq!(0, section.rows_without_header().len())
         }
@@ -310,16 +326,16 @@ mod tests {
                 item = item
             );
 
-            let ion = ion_str.parse::<Ion>().expect("Format ion");
+            let ion = ion_str.parse::<Ion>().unwrap();
 
-            let section = ion.get("FOO").expect("Get section");
+            let section = ion.get("FOO").unwrap();
 
             TestResult::from_bool(3 == section.rows_without_header().len())
         }
 
         #[test]
         fn cell_content_can_start_with_hyphen() {
-            let ion = ion!(
+            let ion = crate::ion!(
                 r#"
                 [FOO]
                 | -3  | emp | a   |
@@ -328,14 +344,14 @@ mod tests {
                 "#
             );
 
-            let section = ion.get("FOO").expect("Get section");
+            let section = ion.get("FOO").unwrap();
 
             assert_eq!(3, section.rows_without_header().len())
         }
 
         #[test]
         fn cell_content_can_be_empty() {
-            let ion = ion!(
+            let ion = crate::ion!(
                 r#"
                 [FOO]
                 |     | emp | a   |
@@ -344,20 +360,40 @@ mod tests {
                 "#
             );
 
-            let section = ion.get("FOO").expect("Get section");
+            let section = ion.get("FOO").unwrap();
 
             assert_eq!(3, section.rows_without_header().len())
         }
 
         #[test]
+        fn cell_content_with_escaped_pipe() {
+            let ion = crate::ion!(
+                r#"
+                [FOO]
+                |     | a\|b  | a   |
+                |     |       | b   |
+                |     | b     |     |
+                "#
+            );
+
+            let section = ion.get("FOO").unwrap();
+            let first_row = section.rows.first().unwrap();
+            assert_eq!(3, first_row.len());
+            assert_eq!("", first_row[0].to_string());
+            assert_eq!("a|b", first_row[1].to_string());
+            assert_eq!("a", first_row[2].to_string());
+            assert_eq!(3, section.rows_without_header().len())
+        }
+
+        #[test]
         fn section_can_have_no_content_rows() {
-            let ion = ion!(
+            let ion = crate::ion!(
                 r#"
                 [FOO]
                 "#
             );
 
-            let section = ion.get("FOO").expect("Get section");
+            let section = ion.get("FOO").unwrap();
 
             assert_eq!(0, section.rows_without_header().len())
         }
