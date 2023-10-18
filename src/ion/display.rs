@@ -36,7 +36,18 @@ impl fmt::Display for Section {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
-            Value::String(ref v) => v.fmt(f),
+            Value::String(ref v) => {
+                for c in v.chars() {
+                    match c {
+                        '\\' => write!(f, "\\\\")?,
+                        '\n' => write!(f, "\\n")?,
+                        '\"' => write!(f, "\\\"")?,
+                        c => write!(f, "{c}")?,
+                    }
+                }
+
+                Ok(())
+            }
             Value::Integer(ref v) => v.fmt(f),
             Value::Float(ref v) => v.fmt(f),
             Value::Boolean(ref v) => v.fmt(f),

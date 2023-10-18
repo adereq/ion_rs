@@ -111,6 +111,7 @@ impl IntoIterator for Section {
 
 #[cfg(test)]
 mod tests {
+    use crate::ion;
     use crate::ion::Ion;
     use crate::Section;
     use quickcheck::TestResult;
@@ -131,7 +132,7 @@ mod tests {
 
             #[test]
             fn it_works_on_ref_section() {
-                let ion = crate::ion!(
+                let ion = ion!(
                     r#"
                     [FOO]
                     |1||2|
@@ -147,7 +148,7 @@ mod tests {
 
             #[test]
             fn it_works_on_section_by_value() {
-                let mut ion = crate::ion!(
+                let mut ion = ion!(
                     r#"
                     [FOO]
                     |1||2|
@@ -163,7 +164,7 @@ mod tests {
 
             #[test]
             fn it_works_with_loop() {
-                let mut ion = crate::ion!(
+                let mut ion = ion!(
                     r#"
                     [FOO]
                     |1||2|
@@ -186,7 +187,7 @@ mod tests {
 
             #[test]
             fn it_works_with_section_by_value() {
-                let mut ion = crate::ion!(
+                let mut ion = ion!(
                     r#"
                     [FOO]
                     | 1 | 2 | 3 |
@@ -206,6 +207,8 @@ mod tests {
     }
 
     mod with_headers {
+        use crate::Value;
+
         use super::*;
 
         #[quickcheck]
@@ -235,7 +238,7 @@ mod tests {
 
         #[test]
         fn cell_content_can_start_with_hyphen() {
-            let ion = crate::ion!(
+            let ion = ion!(
                 r#"
                 [FOO]
                 |head1|head2|head3|
@@ -253,7 +256,7 @@ mod tests {
 
         #[test]
         fn cell_content_can_be_empty() {
-            let ion = crate::ion!(
+            let ion = ion!(
                 r#"
                 [FOO]
                 |head1|head2|head3|
@@ -271,29 +274,27 @@ mod tests {
 
         #[test]
         fn cell_content_with_escaped_pipe() {
-            let ion = crate::ion!(
+            let ion = ion!(
                 r#"
                 [FOO]
-                |head1|head2|head3|
-                |-----|-----|-----|
-                |     | a\|b| a   |
-                |     |     | b   |
-                |     | b   |     |
+                |head1 |head2 |head3 |
+                |------|------|------|
+                | a\|b | a\\b | a\nb |
                 "#
             );
 
             let section = ion.get("FOO").unwrap();
             let first_row = section.rows_without_header().first().unwrap();
             assert_eq!(3, first_row.len());
-            assert_eq!("", first_row[0].to_string());
-            assert_eq!("a|b", first_row[1].to_string());
-            assert_eq!("a", first_row[2].to_string());
-            assert_eq!(3, section.rows_without_header().len())
+            assert_eq!(Value::String("a|b".to_string()), first_row[0]);
+            assert_eq!(Value::String("a\\b".to_string()), first_row[1]);
+            assert_eq!(Value::String("a\nb".to_string()), first_row[2]);
+            assert_eq!(1, section.rows_without_header().len())
         }
 
         #[test]
         fn section_can_have_no_content_rows() {
-            let ion = crate::ion!(
+            let ion = ion!(
                 r#"
                 [FOO]
                 |head1|head2|head3|
@@ -335,7 +336,7 @@ mod tests {
 
         #[test]
         fn cell_content_can_start_with_hyphen() {
-            let ion = crate::ion!(
+            let ion = ion!(
                 r#"
                 [FOO]
                 | -3  | emp | a   |
@@ -351,7 +352,7 @@ mod tests {
 
         #[test]
         fn cell_content_can_be_empty() {
-            let ion = crate::ion!(
+            let ion = ion!(
                 r#"
                 [FOO]
                 |     | emp | a   |
@@ -367,7 +368,7 @@ mod tests {
 
         #[test]
         fn cell_content_with_escaped_pipe() {
-            let ion = crate::ion!(
+            let ion = ion!(
                 r#"
                 [FOO]
                 |     | a\|b  | a   |
@@ -387,7 +388,7 @@ mod tests {
 
         #[test]
         fn section_can_have_no_content_rows() {
-            let ion = crate::ion!(
+            let ion = ion!(
                 r#"
                 [FOO]
                 "#

@@ -179,7 +179,7 @@ impl<'a> Parser<'a> {
             Some((_, '"')) => self.finish_string(),
             Some((_, '[')) => self.finish_array(),
             Some((_, '{')) => self.finish_dictionary(),
-            Some((_, ch)) if is_digit(*ch) => self.number(),
+            Some((_, ch)) if ch.is_ascii_digit() => self.number(),
             Some((pos, 't')) | Some((pos, 'f')) => {
                 let pos = *pos;
                 self.boolean(pos)
@@ -303,7 +303,13 @@ impl<'a> Parser<'a> {
 
     fn finish_string(&mut self) -> Option<Value> {
         self.cur.next();
-        self.slice_to_exc('"').map(|s| Value::String(s.to_string()))
+        self.slice_to_exc('"')
+            .map(|s| {
+                s.replace("\\\\", "\\")
+                    .replace("\\n", "\n")
+                    .replace("\\\"", "\"")
+            })
+            .map(Value::String)
     }
 
     fn keyval_sep(&mut self) -> bool {
@@ -345,8 +351,10 @@ impl<'a> Parser<'a> {
         self.whitespace();
         self.slice_to_exc('|')
             .map(str::trim_end)
-            .unwrap_or("")
-            .replace('\\', "")
+            .unwrap_or_default()
+            .replace("\\\\", "\\")
+            .replace("\\n", "\n")
+            .replace("\\|", "|")
     }
 
     pub fn read(&mut self) -> Option<BTreeMap<String, Section>> {
@@ -482,10 +490,6 @@ impl<'a> Parser<'a> {
             desc: message.to_owned(),
         });
     }
-}
-
-fn is_digit(c: char) -> bool {
-    c.is_ascii_digit()
 }
 
 #[derive(Clone, Debug)]

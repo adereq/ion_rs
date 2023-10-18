@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.8.9
-- Support escape `\` character when creates cell
+- Support escape `\` character when reading cells and strings
 
 ## 0.8.6
 - Optimize parser a bit
