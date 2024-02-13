@@ -14,7 +14,7 @@ mod parser;
 mod writer;
 
 pub use crate::ion::{FromIon, Ion, IonError, Section, Value};
-pub use parser::{Parser, ParserError};
+pub use parser::{Element, Parser, ParserError};
 pub use writer::Writer;
 
 pub type Dictionary = BTreeMap<String, Value>;
